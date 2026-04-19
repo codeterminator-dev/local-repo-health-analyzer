@@ -73,7 +73,11 @@ class ProjectScanner:
 
                 if entry.is_symlink():
                     if entry.is_dir(follow_symlinks=True):
-                        if self.follow_symlink_dirs and self._is_safe_symlink_target(entry.path):
+                        if (
+                            self.follow_symlink_dirs
+                            and self._is_safe_symlink_target(entry.path)
+                            and not self._should_skip_directory(entry_path)
+                        ):
                             subdirectories.append(entry_path)
                         continue
                     if entry.is_file(follow_symlinks=True) and self._is_within_root(entry_path):
@@ -84,7 +88,7 @@ class ProjectScanner:
                     marker_files.append(entry.name)
                     continue
 
-                if entry.is_dir(follow_symlinks=False) and entry.name not in self.skip_directories:
+                if entry.is_dir(follow_symlinks=False) and not self._should_skip_directory(entry_path):
                     subdirectories.append(entry_path)
 
         project = self._detect_project(normalized_current, marker_files)
@@ -130,3 +134,6 @@ class ProjectScanner:
 
     def _is_safe_symlink_target(self, path: str) -> bool:
         return self._is_within_root(self._normalize_path(path))
+
+    def _should_skip_directory(self, path: str) -> bool:
+        return os.path.basename(path.rstrip(os.sep)) in self.skip_directories

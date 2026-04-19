@@ -85,6 +85,28 @@ class ProjectScannerTests(unittest.TestCase):
         self.assertEqual(1, len(projects))
         self.assertEqual(str((self.root / "workspace/projects/backend").resolve()), projects[0].path)
 
+    def test_scan_normalizes_root_paths_before_traversal(self) -> None:
+        self._touch("workspace/apps/api/requirements.txt")
+
+        scanner = ProjectScanner(str(self.root / "workspace/apps/../apps"))
+
+        projects = scanner.scan()
+
+        self.assertEqual(1, len(projects))
+        self.assertEqual(str((self.root / "workspace/apps/api").resolve()), projects[0].path)
+
+    def test_following_safe_symlinks_still_skips_excluded_directory_targets(self) -> None:
+        self._touch("workspace/projects/backend/requirements.txt")
+        self._touch("workspace/node_modules/package.json")
+        os.symlink(self.root / "workspace/node_modules", self.root / "workspace/deps-link")
+
+        scanner = ProjectScanner(str(self.root / "workspace"), follow_symlink_dirs=True)
+
+        projects = scanner.scan()
+
+        self.assertEqual(1, len(projects))
+        self.assertEqual("backend", projects[0].name)
+
     def test_rejects_root_paths_outside_existing_directory(self) -> None:
         with self.assertRaises(ValueError):
             ProjectScanner(str(self.root / "../does-not-exist"))
